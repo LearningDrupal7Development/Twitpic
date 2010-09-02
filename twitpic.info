@@ -1,0 +1,8 @@
+;$Id$
+name = Twitpic
+description = Functionality for accessing and munging photos from the Twitpic hosting service.
+core = 7.x
+php = 5.2
+package = Drupal 7 Module Development
+files[] = twitpic.module
+files[] = TwitpicStreamWrapper.inc

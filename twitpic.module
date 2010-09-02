@@ -1,0 +1,145 @@
+<?php
+
+/**
+ * Implement hook_help().
+ */
+function twitpic_help($path, $arg) {
+  if ($path == 'admin/help#twitpic_filter') {
+    return t('Creates an input filter suitable for user in the body text of nodes, which will include photos hosted on TwitPic. Photos will be cached locally and users can optionally apply an imagestyle setting to each photo.');
+  }
+}
+
+/**
+ * Implement hook_menu().
+ */
+function twitpic_menu() {
+  return;
+  $items = array();
+
+  $items['twitpic/view'] = array(
+    'title' => 'View a Twitpic image',
+    'description' => 'Displays a Twitpic image, given an ID.',
+    'page callback' => 'twitpic_image_view',
+    'access arguments' => array('access_content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['twitpic/munge'] = array(
+    'title' => 'Munge a Twitpic image',
+    'description' => 'Displays a Twitpic image, munged in various ways (cropped, rotated, etc).',
+    'page callback' => 'twitpic_image_munge',
+    'access arguments' => array('access_content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['twitpic/style'] = array(
+    'title' => 'Munge a Twitpic image according to an image style',
+    'description' => 'Displays a Twitpic image, munged according to the specified image style.',
+    'page callback' => 'twitpic_image_style',
+    'access arguments' => array('access_content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implement hook_stream_wrappers().
+ */
+function twitpic_stream_wrappers() {
+  return array(
+    'twitpic' => array(
+      'name' => 'Twitpic photos',
+      'class' => 'TwitpicStreamWrapper',
+      'description' => t('Photos from the Twitpic hosting service.'),
+      'type' => STREAM_WRAPPERS_READ_VISIBLE,
+    ),
+  );
+}
+
+/**
+ * View an image from Twitpic.
+ *
+ * Note this function does not return anything and does not display the image
+ * in the context of your Drupal site. It simply displays the image itself and
+ * nothing else. This is just used as a demonstration of how file_transfer() and
+ * stream wrappers work.
+ *
+ * @param $id
+ *   The image's ID, as extracted from its original URL.
+ * @param $size
+ *   The image's size. This can be either 'thumb' or 'mini'.
+ */
+function twitpic_image_view($id, $size = 'thumb') {
+  file_transfer('twitpic://' . $id . '/' . $size, array('content-type' => 'image/jpeg'));
+}
+
+/**
+ * Munge an image from Twitpic by applying a resize, crop or rotate to it.
+ *
+ * Note this function does not return anything and does not display the image
+ * in the context of your Drupal site. It simply displays the image itself and
+ * nothing else. This is just used as a demonstration of how file_transfer(), 
+ * image api functions, and stream wrappers work.
+ *
+ * @param $id
+ *   The image's ID, as extracted from its original URL.
+ * @param $operation
+ *   An operation to perform on the image. Can be ‘rotate’, 
+ *   ‘scale’, or ‘desaturate’.
+ */
+function twitpic_image_munge($id, $operation = 'rotate') {
+  // If we get a disallowed operation, just return.
+  $operations = array('rotate', 'desaturate', 'scale');
+  if (!in_array($operation, $operations)) {
+    return;
+  }
+
+  $twitpic_uri = 'twitpic://' . $id . '/thumb';
+  $local_uri = 'public://' . $id . '.jpg';
+  if (!$twitpic_image = file_get_contents($twitpic_uri)) {
+    return;
+  }
+  $local_path = file_unmanaged_save_data($twitpic_image, $local_uri, FILE_EXISTS_REPLACE);
+  $local_image = image_load($local_path);
+  
+  switch ($operation) {
+    case 'scale':
+      image_scale($local_image, NULL, 50, FALSE);
+      break;
+    
+    case 'desaturate':
+      image_desaturate($local_image);
+      break;
+
+    case 'rotate':
+      image_rotate($local_image, 45, 0x7D26CD);
+      break;
+  }
+
+  $local_uri = drupal_tempnam('public://', $id);
+  image_save($local_image, $local_uri);
+
+  return theme('image', array('path' => $local_uri));
+}
+
+/**
+ * Munge an image from Twitpic by applying a premade image style to it.
+ *
+ * @param $id
+ *   The image's ID, as extracted from its original URL.
+ */
+function twitpic_image_style($id, $style) {
+  $styles = image_styles();
+  if (!array_key_exists($style, $styles)) {
+    return;
+  }
+  
+  $twitpic_uri = 'twitpic://' . $id . '/thumb';
+  $local_uri = 'public://' . $id . '_' . $style . '.jpg';
+  $twitpic_image = file_get_contents($twitpic_uri);
+  $local_path = file_unmanaged_save_data($twitpic_image, $local_uri, FILE_EXISTS_REPLACE);
+
+  return theme('image_style', array('path' => $local_path));
+}
+
