@@ -378,4 +378,31 @@ class TwitpicStreamWrapper implements DrupalStreamWrapperInterface {
     $url = 'http://twitpic.com/show/' . $options['size'] . '/' . $options['image_id'];
     return $url;    
   }
+
+  /**
+   * Gets the name of the directory from a given path.
+   *
+   * This method is usually accessed through drupal_dirname(), which wraps
+   * around the PHP dirname() function because it does not support stream
+   * wrappers.
+   *
+   * @param $uri
+   *   A URI or path.
+   *
+   * @return
+   *   A string containing the directory name.
+   *
+   * @see drupal_dirname()
+   */
+  public function dirname($uri = NULL) {
+    list($scheme, $target) = explode('://', $uri, 2);
+    $target  = $this->getTarget($uri);
+    $dirname = dirname($target);
+
+    if ($dirname == '.') {
+      $dirname = '';
+    }
+
+    return $scheme . '://' . $dirname;
+  }
 }
