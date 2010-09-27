@@ -13,7 +13,6 @@ function twitpic_help($path, $arg) {
  * Implement hook_menu().
  */
 function twitpic_menu() {
-  return;
   $items = array();
 
   $items['twitpic/view'] = array(
